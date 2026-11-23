@@ -68,13 +68,48 @@ function write(key, value) {
 }
 
 function withStorage(action, showError) {
-  try {
-    return action();
-  } catch (error) {
+  const handleError = error => {
     if (!(error instanceof StorageError)) throw error;
     showError(error.message);
     return undefined;
+  };
+  try {
+    const result = action();
+    return result instanceof Promise ? result.catch(handleError) : result;
+  } catch (error) {
+    return handleError(error);
   }
+}
+
+const PASSWORD_ITERATIONS = 100000;
+
+function toBase64(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+}
+
+function fromBase64(text) {
+  return Uint8Array.from(atob(text), character => character.charCodeAt(0));
+}
+
+async function hashPassword(password, salt) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt: fromBase64(salt), iterations: PASSWORD_ITERATIONS },
+    key,
+    256
+  );
+  return toBase64(bits);
+}
+
+async function createPasswordFields(password) {
+  const passwordSalt = toBase64(crypto.getRandomValues(new Uint8Array(16)));
+  return { passwordSalt, passwordHash: await hashPassword(password, passwordSalt) };
+}
+
+async function checkPassword(user, password) {
+  if (user.passwordHash) return await hashPassword(password, user.passwordSalt) === user.passwordHash;
+  // Cuentas creadas antes del hash: se comparan una vez y se migran al entrar.
+  return user.password === password;
 }
 
 function getSession() {
@@ -108,7 +143,7 @@ function setAuthMode(mode) {
 elements.loginTab.addEventListener("click", () => setAuthMode("login"));
 elements.registerTab.addEventListener("click", () => setAuthMode("register"));
 
-elements.authForm.addEventListener("submit", event => {
+elements.authForm.addEventListener("submit", async event => {
   event.preventDefault();
   elements.authError.textContent = "";
 
@@ -125,42 +160,52 @@ elements.authForm.addEventListener("submit", event => {
     return;
   }
 
-  withStorage(() => {
-    const users = read(STORAGE_KEYS.users);
+  elements.authSubmit.disabled = true;
+  try {
+    await withStorage(async () => {
+      const users = read(STORAGE_KEYS.users);
 
-    if (authMode === "register") {
-      if (!name) {
-        elements.authError.textContent = "Escribe tu nombre.";
-        return;
-      }
-      if (users.some(user => user.email === email)) {
-        elements.authError.textContent = "Ya existe una cuenta con este correo.";
-        return;
-      }
+      if (authMode === "register") {
+        if (!name) {
+          elements.authError.textContent = "Escribe tu nombre.";
+          return;
+        }
+        if (users.some(user => user.email === email)) {
+          elements.authError.textContent = "Ya existe una cuenta con este correo.";
+          return;
+        }
 
-      const user = {
-        id: crypto.randomUUID(),
-        name,
-        email,
-        password
-      };
-      users.push(user);
-      write(STORAGE_KEYS.users, users);
-      localStorage.setItem(STORAGE_KEYS.session, user.id);
-      startSession(user);
-      showToast("Cuenta creada correctamente");
-    } else {
-      const user = users.find(candidate => candidate.email === email && candidate.password === password);
-      if (!user) {
-        elements.authError.textContent = "Correo o contraseña incorrectos.";
-        return;
+        const user = {
+          id: crypto.randomUUID(),
+          name,
+          email,
+          ...(await createPasswordFields(password))
+        };
+        users.push(user);
+        write(STORAGE_KEYS.users, users);
+        localStorage.setItem(STORAGE_KEYS.session, user.id);
+        startSession(user);
+        showToast("Cuenta creada correctamente");
+      } else {
+        const user = users.find(candidate => candidate.email === email);
+        if (!user || !(await checkPassword(user, password))) {
+          elements.authError.textContent = "Correo o contraseña incorrectos.";
+          return;
+        }
+        if (!user.passwordHash) {
+          Object.assign(user, await createPasswordFields(password));
+          delete user.password;
+          write(STORAGE_KEYS.users, users);
+        }
+        localStorage.setItem(STORAGE_KEYS.session, user.id);
+        startSession(user);
       }
-      localStorage.setItem(STORAGE_KEYS.session, user.id);
-      startSession(user);
-    }
-  }, message => {
-    elements.authError.textContent = message;
-  });
+    }, message => {
+      elements.authError.textContent = message;
+    });
+  } finally {
+    elements.authSubmit.disabled = false;
+  }
 });
 
 elements.logoutButton.addEventListener("click", () => {
