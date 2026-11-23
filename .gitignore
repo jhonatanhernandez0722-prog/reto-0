@@ -1,0 +1,11 @@
+# Dependencias y entornos
+node_modules/
+.venv/
+
+# Variables de entorno y datos locales
+.env
+*.db
+
+# Sistema
+.DS_Store
+Thumbs.db

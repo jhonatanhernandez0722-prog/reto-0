@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f1ea" />
+    <title>Cuaderno — Mis tareas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <section class="auth-shell" id="authShell" aria-labelledby="authTitle">
+        <aside class="auth-story">
+          <a class="brand brand-light" href="#" aria-label="Cuaderno, inicio">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span>CUADERNO</span>
+          </a>
+          <div class="story-copy">
+            <p class="eyebrow">Planifica con calma</p>
+            <h1>Haz espacio para lo que importa.</h1>
+            <p>Una lista sencilla para organizar el día, sin distracciones.</p>
+          </div>
+          <p class="story-index">01 — MIS TAREAS</p>
+        </aside>
+
+        <div class="auth-panel">
+          <a class="brand brand-dark mobile-brand" href="#" aria-label="Cuaderno, inicio">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span>CUADERNO</span>
+          </a>
+          <div class="auth-card">
+            <div class="auth-tabs" role="tablist" aria-label="Acceso">
+              <button class="auth-tab active" id="loginTab" type="button" role="tab" aria-selected="true" aria-controls="authForm">Iniciar sesión</button>
+              <button class="auth-tab" id="registerTab" type="button" role="tab" aria-selected="false" aria-controls="authForm">Crear cuenta</button>
+            </div>
+
+            <h2 id="authTitle">Bienvenido de nuevo</h2>
+            <p class="auth-subtitle" id="authSubtitle">Introduce tus datos para continuar.</p>
+
+            <form id="authForm" novalidate>
+              <div class="field name-field" id="nameField" hidden>
+                <label for="name">Nombre</label>
+                <input id="name" name="name" type="text" autocomplete="name" placeholder="Tu nombre" />
+              </div>
+              <div class="field">
+                <label for="email">Correo electrónico</label>
+                <input id="email" name="email" type="email" autocomplete="email" placeholder="nombre@ejemplo.com" required />
+              </div>
+              <div class="field">
+                <label for="password">Contraseña</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres" minlength="6" required />
+              </div>
+              <p class="form-error" id="authError" role="alert"></p>
+              <button class="primary-button auth-submit" type="submit" id="authSubmit">
+                <span>Entrar</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace" id="workspace" hidden>
+        <header class="topbar">
+          <a class="brand brand-dark" href="#" aria-label="Cuaderno, inicio">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span>CUADERNO</span>
+          </a>
+          <div class="profile">
+            <span class="avatar" id="avatar">N</span>
+            <span class="profile-name" id="profileName">Usuario</span>
+            <button class="icon-button logout-button" id="logoutButton" type="button" title="Cerrar sesión" aria-label="Cerrar sesión">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="workspace-grid">
+          <aside class="sidebar">
+            <nav aria-label="Filtros de tareas">
+              <button class="filter-button active" type="button" data-filter="all">
+                <span>Todas</span><span class="filter-count" id="allCount">0</span>
+              </button>
+              <button class="filter-button" type="button" data-filter="pending">
+                <span>Pendientes</span><span class="filter-count" id="pendingCount">0</span>
+              </button>
+              <button class="filter-button" type="button" data-filter="completed">
+                <span>Completadas</span><span class="filter-count" id="completedCount">0</span>
+              </button>
+            </nav>
+          </aside>
+
+          <div class="task-area">
+            <div class="task-heading">
+              <div>
+                <p class="date-label" id="dateLabel"></p>
+                <h1 id="viewTitle">Mis tareas</h1>
+              </div>
+              <button class="primary-button add-button" id="addTaskButton" type="button">
+                <span aria-hidden="true">+</span>
+                <span>Nueva tarea</span>
+              </button>
+            </div>
+
+            <div class="progress-row" id="progressRow">
+              <div class="progress-track" aria-hidden="true"><span id="progressBar"></span></div>
+              <p id="progressText">0 de 0 completadas</p>
+            </div>
+
+            <div class="task-list" id="taskList" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
+      <dialog class="task-dialog" id="taskDialog">
+        <form id="taskForm" novalidate>
+          <div class="dialog-heading">
+            <div>
+              <p class="dialog-kicker">Nueva entrada</p>
+              <h2 id="dialogTitle">Crear tarea</h2>
+            </div>
+            <button class="icon-button" id="closeDialogButton" type="button" aria-label="Cerrar">×</button>
+          </div>
+          <div class="field">
+            <label for="taskTitle">Título</label>
+            <input id="taskTitle" type="text" maxlength="100" placeholder="¿Qué quieres hacer?" required />
+          </div>
+          <div class="field">
+            <label for="taskNotes">Notas <span>(opcional)</span></label>
+            <textarea id="taskNotes" maxlength="300" rows="4" placeholder="Añade una nota breve"></textarea>
+          </div>
+          <p class="form-error" id="taskError" role="alert"></p>
+          <div class="dialog-actions">
+            <button class="secondary-button" id="cancelTaskButton" type="button">Cancelar</button>
+            <button class="primary-button" type="submit" id="saveTaskButton">Guardar tarea</button>
+          </div>
+        </form>
+      </dialog>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
