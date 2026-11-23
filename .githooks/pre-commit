@@ -1,0 +1,19 @@
+#!/bin/sh
+# Revisa el estilo y corre las pruebas antes de cada commit.
+# Se activa una vez con: git config core.hooksPath .githooks
+
+verificar() {
+  nombre="$1"
+  shift
+  puntos=$(printf '%*s' $((66 - ${#nombre})) '' | tr ' ' '.')
+  if salida=$("$@" 2>&1); then
+    echo "$nombre$puntos""Passed"
+  else
+    echo "$nombre$puntos""Failed"
+    echo "$salida"
+    exit 1
+  fi
+}
+
+verificar "ESLint" npx --no-install eslint .
+verificar "Pruebas" npm test --silent
