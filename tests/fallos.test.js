@@ -16,3 +16,17 @@ test("los datos dañados no se sobrescriben y se avisa al usuario", async () => 
   assert.equal(conTareasDanadas.localStorage.getItem("cuaderno_tasks"), "{dañado");
   assert.match(conTareasDanadas.document.getElementById("taskError").textContent, /dañados/);
 });
+
+test("una tarea con datos inválidos se rechaza y no se guarda", async () => {
+  const window = abrirApp();
+  await registrar(window);
+  const error = () => window.document.getElementById("taskError").textContent;
+
+  crearTarea(window, "   ");
+  assert.match(error(), /título/);
+  crearTarea(window, "t".repeat(101));
+  assert.match(error(), /100 caracteres/);
+  crearTarea(window, "Título válido", "n".repeat(301));
+  assert.match(error(), /300 caracteres/);
+  assert.equal(window.localStorage.getItem("cuaderno_tasks"), null);
+});

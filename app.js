@@ -332,13 +332,23 @@ elements.taskDialog.addEventListener("click", event => {
   if (event.target === elements.taskDialog) elements.taskDialog.close();
 });
 
+const TASK_LIMITS = { title: 100, notes: 300 };
+
+function validateTask(title, notes) {
+  if (!title) return "Escribe un título para la tarea.";
+  if (title.length > TASK_LIMITS.title) return `El título admite máximo ${TASK_LIMITS.title} caracteres.`;
+  if (notes.length > TASK_LIMITS.notes) return `La nota admite máximo ${TASK_LIMITS.notes} caracteres.`;
+  return "";
+}
+
 elements.taskForm.addEventListener("submit", event => {
   event.preventDefault();
   const title = elements.taskTitle.value.trim();
   const notes = elements.taskNotes.value.trim();
 
-  if (!title) {
-    elements.taskError.textContent = "Escribe un título para la tarea.";
+  const validationError = validateTask(title, notes);
+  if (validationError) {
+    elements.taskError.textContent = validationError;
     elements.taskTitle.focus();
     return;
   }

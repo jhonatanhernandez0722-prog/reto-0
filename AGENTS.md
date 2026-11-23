@@ -30,3 +30,4 @@ crea una cuenta, inicia sesión y crea, edita, completa y elimina sus tareas.
 
 ## Lecciones aprendidas
 - Si los datos guardados están dañados, la app avisa y no guarda nada encima: nunca los trata como una lista vacía.
+- Todo límite del formulario se valida también en app.js: título obligatorio de máximo 100 caracteres y nota de máximo 300.
