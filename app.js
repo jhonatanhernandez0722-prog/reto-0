@@ -45,13 +45,36 @@ let authMode = "login";
 let activeFilter = "all";
 let editingTaskId = null;
 
+class StorageError extends Error {}
+
 function read(key) {
-  try { return JSON.parse(localStorage.getItem(key)) || []; }
-  catch { return []; }
+  const stored = localStorage.getItem(key);
+  if (stored === null) return [];
+  try {
+    const value = JSON.parse(stored);
+    if (Array.isArray(value)) return value;
+  } catch {
+    // Un JSON inválido está tan dañado como un valor que no es una lista.
+  }
+  throw new StorageError("Los datos guardados están dañados. No se guardó nada para no perderlos.");
 }
 
 function write(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    throw new StorageError("No se pudo guardar: el almacenamiento del navegador está lleno o bloqueado.");
+  }
+}
+
+function withStorage(action, showError) {
+  try {
+    return action();
+  } catch (error) {
+    if (!(error instanceof StorageError)) throw error;
+    showError(error.message);
+    return undefined;
+  }
 }
 
 function getSession() {
@@ -102,38 +125,42 @@ elements.authForm.addEventListener("submit", event => {
     return;
   }
 
-  const users = read(STORAGE_KEYS.users);
+  withStorage(() => {
+    const users = read(STORAGE_KEYS.users);
 
-  if (authMode === "register") {
-    if (!name) {
-      elements.authError.textContent = "Escribe tu nombre.";
-      return;
-    }
-    if (users.some(user => user.email === email)) {
-      elements.authError.textContent = "Ya existe una cuenta con este correo.";
-      return;
-    }
+    if (authMode === "register") {
+      if (!name) {
+        elements.authError.textContent = "Escribe tu nombre.";
+        return;
+      }
+      if (users.some(user => user.email === email)) {
+        elements.authError.textContent = "Ya existe una cuenta con este correo.";
+        return;
+      }
 
-    const user = {
-      id: crypto.randomUUID(),
-      name,
-      email,
-      password
-    };
-    users.push(user);
-    write(STORAGE_KEYS.users, users);
-    localStorage.setItem(STORAGE_KEYS.session, user.id);
-    startSession(user);
-    showToast("Cuenta creada correctamente");
-  } else {
-    const user = users.find(candidate => candidate.email === email && candidate.password === password);
-    if (!user) {
-      elements.authError.textContent = "Correo o contraseña incorrectos.";
-      return;
+      const user = {
+        id: crypto.randomUUID(),
+        name,
+        email,
+        password
+      };
+      users.push(user);
+      write(STORAGE_KEYS.users, users);
+      localStorage.setItem(STORAGE_KEYS.session, user.id);
+      startSession(user);
+      showToast("Cuenta creada correctamente");
+    } else {
+      const user = users.find(candidate => candidate.email === email && candidate.password === password);
+      if (!user) {
+        elements.authError.textContent = "Correo o contraseña incorrectos.";
+        return;
+      }
+      localStorage.setItem(STORAGE_KEYS.session, user.id);
+      startSession(user);
     }
-    localStorage.setItem(STORAGE_KEYS.session, user.id);
-    startSession(user);
-  }
+  }, message => {
+    elements.authError.textContent = message;
+  });
 });
 
 elements.logoutButton.addEventListener("click", () => {
@@ -185,7 +212,8 @@ function startSession(user) {
 }
 
 function renderTasks() {
-  const tasks = getUserTasks();
+  const tasks = withStorage(getUserTasks, showToast);
+  if (!tasks) return;
   const pending = tasks.filter(task => !task.completed).length;
   const completed = tasks.length - pending;
 
@@ -257,22 +285,24 @@ elements.taskList.addEventListener("click", event => {
   if (!actionButton) return;
   const item = actionButton.closest(".task-item");
   const taskId = item.dataset.taskId;
-  const task = getUserTasks().find(candidate => candidate.id === taskId);
-  if (!task) return;
+  withStorage(() => {
+    const task = getUserTasks().find(candidate => candidate.id === taskId);
+    if (!task) return;
 
-  if (actionButton.dataset.action === "toggle") {
-    task.completed = !task.completed;
-    saveUserTask(task);
-    renderTasks();
-    showToast(task.completed ? "Tarea completada" : "Tarea marcada como pendiente");
-  }
+    if (actionButton.dataset.action === "toggle") {
+      task.completed = !task.completed;
+      saveUserTask(task);
+      renderTasks();
+      showToast(task.completed ? "Tarea completada" : "Tarea marcada como pendiente");
+    }
 
-  if (actionButton.dataset.action === "edit") openEditDialog(task);
-  if (actionButton.dataset.action === "delete") {
-    deleteUserTask(taskId);
-    renderTasks();
-    showToast("Tarea eliminada");
-  }
+    if (actionButton.dataset.action === "edit") openEditDialog(task);
+    if (actionButton.dataset.action === "delete") {
+      deleteUserTask(taskId);
+      renderTasks();
+      showToast("Tarea eliminada");
+    }
+  }, showToast);
 });
 
 function openCreateDialog() {
@@ -313,28 +343,34 @@ elements.taskForm.addEventListener("submit", event => {
     return;
   }
 
-  const user = getSession();
-  if (!user) return;
+  const saved = withStorage(() => {
+    const user = getSession();
+    if (!user) return false;
 
-  if (editingTaskId) {
-    const task = getUserTasks().find(candidate => candidate.id === editingTaskId);
-    if (task) {
-      task.title = title;
-      task.notes = notes;
-      task.updatedAt = Date.now();
-      saveUserTask(task);
+    if (editingTaskId) {
+      const task = getUserTasks().find(candidate => candidate.id === editingTaskId);
+      if (task) {
+        task.title = title;
+        task.notes = notes;
+        task.updatedAt = Date.now();
+        saveUserTask(task);
+      }
+    } else {
+      saveUserTask({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        title,
+        notes,
+        completed: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
     }
-  } else {
-    saveUserTask({
-      id: crypto.randomUUID(),
-      userId: user.id,
-      title,
-      notes,
-      completed: false,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    });
-  }
+    return true;
+  }, message => {
+    elements.taskError.textContent = message;
+  });
+  if (!saved) return;
 
   elements.taskDialog.close();
   renderTasks();
@@ -349,6 +385,11 @@ function showToast(message) {
   toastTimer = setTimeout(() => elements.toast.classList.remove("show"), 2200);
 }
 
-const existingUser = getSession();
-if (existingUser) startSession(existingUser);
-else setAuthMode("login");
+withStorage(() => {
+  const existingUser = getSession();
+  if (existingUser) startSession(existingUser);
+  else setAuthMode("login");
+}, message => {
+  setAuthMode("login");
+  elements.authError.textContent = message;
+});

@@ -29,3 +29,4 @@ crea una cuenta, inicia sesión y crea, edita, completa y elimina sus tareas.
 - No hacer commit ni push sin la confirmación del aprendiz.
 
 ## Lecciones aprendidas
+- Si los datos guardados están dañados, la app avisa y no guarda nada encima: nunca los trata como una lista vacía.
