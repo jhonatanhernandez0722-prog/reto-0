@@ -6,7 +6,7 @@
   "scripts": {
     "start": "python -m http.server 4173",
     "serve": "python -m http.server 4173",
-    "test": "node --test",
+    "test": "node --test --test-reporter=spec",
     "lint": "eslint ."
   },
   "devDependencies": {
